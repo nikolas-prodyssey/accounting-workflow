@@ -1,5 +1,5 @@
-const EXPECTED_SPREADSHEET_NAME = 'Business Summary';
-const MENU_NAME = 'Accounting';
+const EXPECTED_SHEET_NAME = 'Business Summary';
+const MENU_NAME = '📒 Accounting';
 
 const SHEET_VAT_RATES = 'VAT Rates';
 const SHEET_REPORTING = 'Reporting';
@@ -12,7 +12,7 @@ const RANGE_WORKFLOW_SELECTION = 'C20:H20'; // merged
 function onOpen(e) {
   SpreadsheetApp.getUi()
     .createMenu(MENU_NAME)
-    .addItem('Generate Workflow', 'generateWorkflow')
+    .addItem('📝 Generate Workflow', 'generateWorkflow')
     .addToUi();
 }
 
@@ -20,15 +20,16 @@ function generateWorkflow() {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   const ui = SpreadsheetApp.getUi();
 
-  if (ss.getName() !== EXPECTED_SPREADSHEET_NAME) {
+  const activeSheetName = ss.getActiveSheet().getName();
+  if (activeSheetName !== EXPECTED_SHEET_NAME) {
     ui.alert(
-      'Wrong spreadsheet',
-      `This function must be run from the spreadsheet named "${EXPECTED_SPREADSHEET_NAME}".\n\n` +
-        `Current spreadsheet name: "${ss.getName()}".`,
+      'Wrong sheet',
+      `This function must be run from the sheet (tab) named "${EXPECTED_SHEET_NAME}".\n\n` +
+        `Current active sheet: "${activeSheetName}".`,
       ui.ButtonSet.OK
     );
     throw new Error(
-      `generateWorkflow must run in "${EXPECTED_SPREADSHEET_NAME}", not "${ss.getName()}".`
+      `generateWorkflow must run from the "${EXPECTED_SHEET_NAME}" sheet, not "${activeSheetName}".`
     );
   }
 
