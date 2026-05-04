@@ -1,0 +1,39 @@
+---
+description: Accounting Manual — Apps Script project context and agent onboarding
+alwaysApply: true
+---
+
+# Accounting Manual — Apps Script
+
+## What this project is
+
+Google **Apps Script bound to a Spreadsheet** (this folder, deployed via **clasp**). Source of truth: **`src/Code.gs`** + **`appsscript.json`**. Push changes with **`clasp push`** from this directory.
+
+## Menu `📒 Accounting`
+
+| Item | Function | Purpose |
+|------|-----------|---------|
+| Generate Workflow | `generateWorkflow` | Run only from **Business Summary** tab. Confirms, optionally invalidates sign-off, resets formatting, reads VAT + sheet picks, clears unprotected cells (except Business Summary), shows/hides tabs. |
+| Sign off | `signOff` | Validates H5 + empty required fields, inserts log row, sets **F10/F11**, green tabs, builds hidden **Sign-off snapshot** sheet. |
+| Re-initiated spreadsheet | `reinitiatedSpreadsheet` | Deep reset: delete snapshot, clear tab colours, hide all except Business Summary, delete Sign off rows ≥10, clear all unprotected cells. |
+
+## Critical constants / cells
+
+- **Business Summary** tab required for Generate Workflow (active sheet name check).
+- **Sign off Page**: `H5` request gate; **`F10`** = latest log “up to date” (**Yes**/No); previous latest **`F11`** set **No** on new sign-off.
+- Snapshot sheet name: **`Sign-off snapshot`** (hidden). Full-grid export; **font #ff9900** cells excluded (notes).
+- OAuth scopes are explicit in **`appsscript.json`** (Sheets, UI, ScriptApp triggers, user email).
+
+## Architecture patterns
+
+- **Installable triggers**: `ensureTriggersInstalled_()` → `onSheetChange_` (sheet guard), `onSignedOffEdit_` (signed-off edit warning).
+- **Sheet guard**: JSON snapshot in Document Properties; reverts hide/rename; **snapshot sheet delete** while signed off invalidates **F10** + alert.
+- **Progress UX**: `progressStep_` / `progressDone_` use **`Spreadsheet.toast`** (bottom-right in Sheets) + short **`Utilities.sleep`** between steps.
+- **Clearing data**: Prefer **`clearContent()`** to preserve data validation; **`resetUnprotectedContent_`** respects sheet/range protections.
+
+## Agent checklist when editing
+
+1. Keep **`SKIP_SIGN_OFF_EDIT_KEY`** around programmatic **F10** writes to avoid edit-trigger loops.
+2. After adding/removing sheets programmatically, call **`snapshotSheetGuardState_(ss)`** so the guard stays consistent.
+3. New menu actions: add to **`onOpen`** menu builder and implement with confirmations for destructive steps.
+4. Re-run **`clasp push`** after edits; users reload the spreadsheet to pick up changes.
