@@ -1,0 +1,93 @@
+---
+description: Accounting Manual — multi-client architecture context and agent onboarding
+alwaysApply: true
+---
+
+# Accounting Manual — Multi-Client Apps Script Architecture
+
+## What this project is
+
+Per-client Google Sheets workbooks driven by an **internal Editor Add-on** that copies a clean **master spreadsheet**, attaches a tiny **bound shim** to each copy, and delegates all real logic to a versioned **Apps Script library**. There is no per-client business code — the shim only forwards calls to `AccountingLib.*`. Client-specific state lives on the spreadsheet (cells + DocumentProperties).
+
+## Repository layout
+
+| Path | Role | Pushed via |
+|---|---|---|
+| `apps-script-lib/` | **Library** project (standalone). All logic lives here. Holds shared `OPENAI_API_KEY` + `OPENAI_ACCOUNTING_MANUAL_PROMPT_ID` in **library Script Properties**. Library script id: `1YEFSuMVd2zTzPr2DoPcbXGNtzMts0mR0YWMfWGtEZkhVQUVXXFo2GwHh`, currently pinned at **version 1**. | `clasp push` from this folder. After meaningful changes, run `clasp version "..."` to publish a new version. |
+| `apps-script-shim/` | **Shim source-of-truth** template (delegations + `ensureTriggersInstalled_`). NOT a clasp project — the add-on inlines a copy of these files in `apps-script-addon/src/ShimTemplate.gs` and pushes that to each new bound script. | n/a — keep mirrored with `apps-script-addon/src/ShimTemplate.gs`. |
+| `apps-script-addon/` | **Internal Editor Add-on** (CardService). Provisions new client workbooks (Drive copy → create bound script via Apps Script API → push shim files → run `AccountingLib.bootstrap(ss)`) and attach/upgrades plugin on the active spreadsheet. | `clasp push` from this folder. Then deploy as add-on (Test deployment for development; Listing deployment for domain-wide internal install). |
+| `apps-script/` | Bound script project on the **master** spreadsheet. **Intentionally empty** — must not contain logic so copies start clean. Master file id: `17UeCZbA6e_M9XdBihPq0OzRXOE1oVOdvYsm1Ii-VxCw`. | `clasp push` from this folder. |
+
+Master file ID and library script ID are defined in `apps-script-addon/src/Constants.gs`.
+
+## Operator flow (provisioner)
+
+1. From any Google Sheet → Extensions → **Accounting Manual Provisioner**.
+2. **Create new client workbook** → enter client name + destination Drive folder ID → add-on:
+   1. Copies the master via Drive API.
+   2. Creates a bound script project for the new file via Apps Script API.
+   3. Pushes the shim files (`appsscript.json` + `Shim.gs`) to that bound script.
+   4. Opens the new spreadsheet via `SpreadsheetApp.openById` and calls `AccountingLib.bootstrap(ss)` (silent reinit).
+3. **Attach/upgrade plugin on this workbook** — same attach mechanism on the currently-open file (idempotent; updates files of an existing bound script).
+
+Triggers (`onSheetChange_`, `onSignedOffEdit_`) are NOT installed during provisioning. They are installed lazily by the shim on first authorized action (Generate Workflow / Sign off).
+
+## Library public API (called from the shim)
+
+- `AccountingLib.onOpen(e)` — builds menu + handles missing-snapshot invalidation alert.
+- `AccountingLib.signOff()` — full sign-off: H5 + validation gate, log row insert (C10/D10/F10), snapshot, OpenAI call, Google Doc creation, hyperlink to E10.
+- `AccountingLib.generateWorkflow()` — workflow tab visibility + reset.
+- `AccountingLib.reinitiatedSpreadsheet()` — interactive deep reset.
+- `AccountingLib.onSheetChange(e)` — sheet-guard handler.
+- `AccountingLib.onSignedOffEdit(e)` — signed-off edit warning handler.
+- `AccountingLib.bootstrap(ss)` — non-interactive reinit used by the add-on right after copying the master.
+
+## Shim (what lives in each client workbook's bound script)
+
+Source of truth: `apps-script-shim/src/Shim.gs` and `apps-script-shim/src/appsscript.json`.
+
+Responsibilities:
+- Build the `📒 Accounting` menu via simple `onOpen`.
+- Host installable trigger **handler** functions `onSheetChange_` and `onSignedOffEdit_` that delegate to the library.
+- `ensureTriggersInstalled_()` — installs missing triggers on first authorized action. **Must live in the bound shim** because `ScriptApp.newTrigger(...).forSpreadsheet(...)` creates triggers in the calling script project; from the library it would create them on the library project (wrong).
+
+## Critical constants / cells
+
+- **Business Summary** tab required for Generate Workflow (active sheet name check). Client name read from **Business Summary `C7:H7`** (used for `{{client}}` and Doc filename).
+- **Sign off Page**: `H5` request gate; **`F10`** = latest log "up to date" (**Yes**/No); previous latest **`F11`** set **No** on new sign-off; **`E10`** holds the hyperlink to the generated Accounting Manual Doc.
+- Snapshot sheet name: **`Sign-off snapshot`** (hidden). Full-grid export; **font #ff9900** cells excluded (notes). The snapshot text is what's sent to OpenAI as `{{sign_off_page}}` (variable name is configurable but defaults to `sign_off_page` for legacy reasons).
+- OAuth scopes are declared in each project's `appsscript.json`.
+
+## OpenAI integration (library only)
+
+- Endpoint: `POST https://api.openai.com/v1/responses` with stored prompt id and variables `{client, sign_off_page}`.
+- Returns **JSON** (your stored prompt is configured to return structured doc blocks).
+- Library writes the raw JSON to the **Accounting manual** sheet (chunked) and renders a **Google Doc** with title/headings/bullets/tables. Doc filename: `Accounting Manual - <client> - V<n> - <YYYY-MM-DD>` where `n` = number of sign-off log rows on the Sign off Page (rows 10+).
+- Doc moved into the spreadsheet's parent Drive folder.
+
+## Architecture patterns
+
+- **Installable triggers**: created by the shim's `ensureTriggersInstalled_()` (lazy, idempotent). Trigger handler bodies live in the library; shim handlers just delegate.
+- **Sheet guard**: JSON snapshot in DocumentProperties (`SHEET_GUARD_STATE_KEY`); reverts hide/rename; **snapshot sheet delete** while signed off invalidates **F10** + alert + deletes Accounting manual sheet.
+- **`SKIP_SIGN_OFF_EDIT_KEY`** is set around all programmatic edits that would otherwise trigger `onSignedOffEdit_` / `onSheetChange_` invalidation logic (sign-off writes, snapshot delete, doc-link write to E10, invalidate, bootstrap).
+- **Progress UX**: `progressStep_` / `progressDone_` use `Spreadsheet.toast` (bottom-right in Sheets) + short `Utilities.sleep` so toasts remain readable.
+- **Clearing data**: Prefer `clearContent()` to preserve data validation; `resetUnprotectedContent_` respects sheet/range protections.
+
+## Versioning + upgrade workflow
+
+1. Edit code in `apps-script-lib/src/`.
+2. `clasp push --force` from `apps-script-lib/`.
+3. `clasp version "<message>"` to publish a new immutable version.
+4. Bump `ACCOUNTING_LIB_VERSION` in `apps-script-addon/src/Constants.gs`, in `apps-script-addon/appsscript.json`, and in `apps-script-shim/src/appsscript.json`.
+5. `clasp push --force` from `apps-script-addon/`.
+6. Run **Attach/upgrade plugin on this workbook** in the add-on for each existing client to roll forward the pinned version.
+
+## Agent checklist when editing
+
+1. Keep `SKIP_SIGN_OFF_EDIT_KEY` around all programmatic edits that touch protected workbook state (F10, snapshot tab, E10, manual sheet, bootstrap).
+2. After adding/removing sheets programmatically, call `snapshotSheetGuardState_(ss)` to keep the guard consistent.
+3. New menu actions: add the entry to `AccountingLib.onOpen` (library) so it appears in every shim's menu automatically. **Do not** add menu items in the shim.
+4. Library refactors that change the public surface require rebuilding/republishing the library version + bumping the pinned version in shim + add-on.
+5. Trigger installation MUST stay in the shim (`ensureTriggersInstalled_`). Do not move it to the library.
+6. The master spreadsheet's bound script (`apps-script/`) must remain empty — never add logic there.
+7. After meaningful changes: `clasp push --force` the affected project. Reload spreadsheets (and re-run an action to trigger lazy reinstalls if signatures changed).

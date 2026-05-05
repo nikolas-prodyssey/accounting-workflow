@@ -1,0 +1,11 @@
+.DS_Store
+
+# Google Drive shortcut stubs (open as Sheets on Drive)
+*.gsheet
+
+# clasp local config (contains scriptId)
+.clasp.json
+
+# optional build artifacts
+node_modules/
+

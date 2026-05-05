@@ -1,0 +1,47 @@
+{
+  "timeZone": "Asia/Nicosia",
+  "dependencies": {
+    "libraries": [
+      {
+        "userSymbol": "AccountingLib",
+        "libraryId": "1YEFSuMVd2zTzPr2DoPcbXGNtzMts0mR0YWMfWGtEZkhVQUVXXFo2GwHh",
+        "version": "1",
+        "developmentMode": false
+      }
+    ]
+  },
+  "exceptionLogging": "STACKDRIVER",
+  "runtimeVersion": "V8",
+  "urlFetchWhitelist": [
+    "https://www.googleapis.com/drive/v3/",
+    "https://script.googleapis.com/v1/"
+  ],
+  "oauthScopes": [
+    "https://www.googleapis.com/auth/script.projects",
+    "https://www.googleapis.com/auth/drive",
+    "https://www.googleapis.com/auth/spreadsheets",
+    "https://www.googleapis.com/auth/script.container.ui",
+    "https://www.googleapis.com/auth/script.external_request",
+    "https://www.googleapis.com/auth/script.locale",
+    "https://www.googleapis.com/auth/script.scriptapp",
+    "https://www.googleapis.com/auth/userinfo.email",
+    "https://www.googleapis.com/auth/documents"
+  ],
+  "addOns": {
+    "common": {
+      "name": "Accounting Manual Provisioner",
+      "logoUrl": "https://www.gstatic.com/images/branding/product/2x/sheets_48dp.png",
+      "useLocaleFromApp": true,
+      "homepageTrigger": {
+        "runFunction": "buildHomepageCard",
+        "enabled": true
+      }
+    },
+    "sheets": {
+      "homepageTrigger": {
+        "runFunction": "buildHomepageCard",
+        "enabled": true
+      }
+    }
+  }
+}
