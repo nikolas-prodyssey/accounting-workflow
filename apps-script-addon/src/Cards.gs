@@ -142,7 +142,8 @@ function handleCreateClientWorkbook(e) {
       linkifyLabel_('Spreadsheet', result.spreadsheetUrl, 'Open spreadsheet'),
       'Bound script id: ' + result.boundScriptId,
       'Library version: ' + ACCOUNTING_LIB_VERSION,
-      ...bootLines
+      ...bootLines,
+      ...formatStaleCleanupLines_(result)
     ])
   );
 }
@@ -200,7 +201,21 @@ function handleAttachToCurrent(e) {
     );
   }
 
+  for (const l of formatStaleCleanupLines_(result)) lines.push(l);
+
   return navigateToCard_(buildResultCard_('Plugin attached / upgraded', lines));
+}
+
+function formatStaleCleanupLines_(result) {
+  const stale = (result && result.staleNames) || [];
+  if (!stale.length) return [];
+  const neutralized = result.neutralizedCount || 0;
+  const trashed = result.trashedCount || 0;
+  return [
+    'Removed ' + stale.length + ' inherited bound script(s) so only the shim runs:',
+    '• ' + stale.join(', '),
+    'Neutralized: ' + neutralized + ' / ' + stale.length + ' · Trashed: ' + trashed + ' / ' + stale.length
+  ];
 }
 
 // ------------------------------------------------------------------
