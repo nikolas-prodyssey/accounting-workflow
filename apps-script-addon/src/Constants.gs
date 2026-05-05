@@ -9,7 +9,7 @@ const MASTER_SPREADSHEET_ID = '17UeCZbA6e_M9XdBihPq0OzRXOE1oVOdvYsm1Ii-VxCw';
 const ACCOUNTING_LIB_SCRIPT_ID = '1YEFSuMVd2zTzPr2DoPcbXGNtzMts0mR0YWMfWGtEZkhVQUVXXFo2GwHh';
 
 /** Library version pinned by the shim (same value as in shim's appsscript.json). Bump when promoting a new library version. */
-const ACCOUNTING_LIB_VERSION = '1';
+const ACCOUNTING_LIB_VERSION = '2';
 
 /** Domain restriction (best-effort soft check; real enforcement is via internal add-on deployment). */
 const ALLOWED_DOMAINS = ['prodyssey.solutions'];
