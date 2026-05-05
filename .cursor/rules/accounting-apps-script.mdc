@@ -82,6 +82,27 @@ Responsibilities:
 5. `clasp push --force` from `apps-script-addon/`.
 6. Run **Attach/upgrade plugin on this workbook** in the add-on for each existing client to roll forward the pinned version.
 
+## Git and GitHub
+
+- **Canonical repo**: [nikolas-prodyssey/accounting-workflow](https://github.com/nikolas-prodyssey/accounting-workflow) on branch **`main`**.
+- **Clone** (pick one):
+  - HTTPS: `git clone https://github.com/nikolas-prodyssey/accounting-workflow.git`
+  - SSH: `git clone git@github.com:nikolas-prodyssey/accounting-workflow.git`
+- **Single repo at workspace root**: all Apps Script projects (`apps-script-lib/`, `apps-script-addon/`, `apps-script/`, `apps-script-shim/`) live in **one** Git repository. Commit from the repo root, not only inside `apps-script/`.
+- **Do not commit `.clasp.json`** — it is gitignored (contains `scriptId` and ties to your Google account). Each developer keeps their own local clasp link file.
+- **Typical Git workflow** after editing source:
+
+```bash
+git status
+git add -A
+git commit -m "Short imperative description of the change"
+git push origin main
+```
+
+- **Remote URL**: set `origin` to HTTPS or SSH depending on how you authenticate (`git remote -v`). SSH (`git@github.com:nikolas-prodyssey/accounting-workflow.git`) avoids HTTPS username/password prompts when SSH keys are configured; HTTPS needs a credential helper or personal access token.
+- **Layout discipline**: library code lives under **`apps-script-lib/`** only. Do not add a duplicate legacy flat layout at repo root (`src/Code.gs`, root `appsscript.json`) — that pattern was removed in favor of the multi-folder architecture.
+- **Rare merges**: if Git reports unrelated histories when pulling, coordinate with `git pull origin main --allow-unrelated-histories --no-rebase` only when you understand the conflict risk (prefer a clean branch from `main` otherwise).
+
 ## Agent checklist when editing
 
 1. Keep `SKIP_SIGN_OFF_EDIT_KEY` around all programmatic edits that touch protected workbook state (F10, snapshot tab, E10, manual sheet, bootstrap).

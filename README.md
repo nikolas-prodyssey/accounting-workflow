@@ -79,6 +79,12 @@ The shim template is **not** clasp-managed — its source lives in `apps-script-
 
 ---
 
+## Git / GitHub
+
+Source control: [github.com/nikolas-prodyssey/accounting-workflow](https://github.com/nikolas-prodyssey/accounting-workflow) (`main`). One repository at the project root covers all folders above. **Do not commit** `.clasp.json` (gitignored). Day-to-day: `git add`, `git commit`, `git push origin main`. For remote setup (HTTPS vs SSH), merge notes, and layout rules, see **`.cursor/rules/accounting-apps-script.mdc`** (section **Git and GitHub**).
+
+---
+
 ## Future hardening ideas
 
 - Move shim template content out of `apps-script-addon/src/ShimTemplate.gs` and read at build time so it can't drift from `apps-script-shim/src/Shim.gs`.
